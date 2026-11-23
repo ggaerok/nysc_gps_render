@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f5c56">
+<title>GPS Viewer 2(Render) · 운영 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0f5c56;color:#0d2a27;
+  font-family:'Jua',-apple-system,BlinkMacSystemFont,"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+  -webkit-tap-highlight-color:transparent}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;text-align:center;padding:24px 16px 40px;
+  background:
+  radial-gradient(circle at 12% 18%,#c9fff0 0 2px,transparent 3px),radial-gradient(circle at 80% 12%,#c9fff0 0 2px,transparent 3px),
+  radial-gradient(circle at 30% 70%,#c9fff0 0 1.5px,transparent 2.5px),radial-gradient(circle at 90% 80%,#c9fff0 0 2px,transparent 3px),
+  radial-gradient(circle at 55% 40%,#c9fff0 0 1.5px,transparent 2.5px),radial-gradient(120% 80% at 50% 0%,#1f8f83 0%,#0f5c56 55%,#083a36 100%)}
+h1{margin:0 0 6px;font-size:30px;font-weight:400;color:#e6faf3;text-shadow:0 3px 0 #0d2a27}
+h2{margin:0 0 8px;font-size:20px;font-weight:400}
+.card{background:#e6faf3;border:3.5px solid #0d2a27;border-radius:24px;box-shadow:0 6px 0 #0d2a27;padding:18px 20px 20px;width:100%;max-width:400px;margin-top:16px}
+.note{color:#2c5f58;font-size:15px;line-height:1.5;margin:6px 0}
+.top-note{color:#d3f3ea;font-size:14px;line-height:1.5;max-width:360px;margin:6px 0}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.btn{font:inherit;font-size:19px;border:3.5px solid #0d2a27;border-radius:18px;padding:11px 24px;cursor:pointer;min-width:140px;
+  text-decoration:none;display:inline-block;color:#0d2a27;box-shadow:0 4px 0 #0d2a27}
+.btn.go{background:#ffb547}.btn.stop{background:#ff7a7a}.btn.sub{background:#fff}
+.btn:disabled{opacity:.4;cursor:default;box-shadow:0 2px 0 #0d2a27}
+.btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #0d2a27}
+.err{color:#c0322e}
+.hidden{display:none!important}
+.pill{display:inline-block;padding:5px 20px;border:3px solid #0d2a27;border-radius:999px;font-size:18px;margin:6px 0 4px}
+.pill.on{background:#7be0a4}.pill.off{background:#fff;color:#2c5f58}
+input{font:inherit;font-size:18px;padding:10px 14px;border-radius:14px;border:3.5px solid #0d2a27;background:#fff;color:#0d2a27;width:100%;max-width:280px;text-align:center}
+input:disabled{opacity:.55}
+code{background:#fff;border:2.5px solid #0d2a27;border-radius:10px;padding:4px 8px;font-size:13px;word-break:break-all;user-select:all;font-family:inherit}
+#gate{width:100%;max-width:340px;margin-top:12vh}#gate .card{margin-top:0}
+#pin{letter-spacing:.5em;font-size:26px;max-width:200px;padding-left:calc(14px + .5em)}
+#app{width:100%;display:flex;flex-direction:column;align-items:center}
+#pinMsg{min-height:1.6em}
+</style>
+</head>
+<body>
+<h1 style="margin-top:8px">GPS Viewer 2(Render)</h1>
+<p class="top-note" style="margin:0 0 4px;font-size:17px">운영 관리</p>
+<div id="gate">
+  <div class="card">
+    <h2>관리 번호 입력</h2>
+    <p class="note">운영을 바꾸려면 관리 번호를 입력해 주세요.</p>
+    <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="····" autocomplete="off" disabled>
+    <p id="pinMsg" class="note">확인 중…</p>
+    <div class="row"><button id="pinBtn" class="btn go" type="button" disabled>확인</button></div>
+  </div>
+</div>
+<div id="app" class="hidden">
+<p id="noPin" class="top-note hidden" style="color:#ffd2d2">관리 번호가 설정되지 않아 누구나 설정을 바꿀 수 있습니다. (Render 환경변수 ADMIN_KEY)</p>
+<p class="top-note">운영 중일 때만 GPS 페이지가 동작합니다. 좌표는 서버로 전송하거나 저장하지 않습니다.</p>
+<div class="card">
+<div id="pill" class="pill off">확인 중…</div>
+<div class="row">
+  <button id="btnStart" class="btn go" type="button" disabled>운영 시작</button>
+  <button id="btnStop" class="btn stop" type="button" disabled>운영 종료</button>
+</div>
+<p id="msg" class="note"></p>
+<p class="note">GPS 페이지 주소<br><code id="locUrl"></code></p>
+<div class="row"><a class="btn sub" href="/location" target="_blank" rel="noopener">GPS 페이지 보기</a></div>
+</div>
+</div>
+<script>
+(function () {
+'use strict';
+function $(id) { return document.getElementById(id); }
+var pill = $('pill'), msg = $('msg'), btnStart = $('btnStart'), btnStop = $('btnStop');
+var gate = $('gate'), app = $('app'), pin = $('pin'), pinBtn = $('pinBtn'), pinMsg = $('pinMsg'), noPin = $('noPin');
+var adminKey = '', lockTimer = null;
+var st = { open: false, changedAt: 0, loaded: false, error: '' }, writing = false, note = '', noteIsErr = false;
+var POLL = 5000;
+
+$('locUrl').textContent = location.origin + '/location';
+try { adminKey = sessionStorage.getItem('adminKey') || ''; } catch (e) {}
+
+function p2(n) { return (n < 10 ? '0' : '') + n; }
+function fmt(ts) { var d = new Date(ts); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()); }
+function errText(code) {
+  if (code === 'storage_not_configured') return '저장소가 연결되지 않았습니다. README의 저장소 연결 단계를 확인해 주세요.';
+  if (code === 'unauthorized') return '관리 번호가 올바르지 않습니다.';
+  if (code === 'locked') return '번호를 여러 번 틀려 잠시 잠겼습니다.';
+  if (code === 'already_open') return '이미 운영 중입니다.';
+  return '서버와 통신하지 못했습니다. (' + code + ')';
+}
+function render() {
+  pill.className = 'pill ' + (st.loaded && st.open ? 'on' : 'off');
+  pill.textContent = !st.loaded ? (st.error ? '확인 불가' : '확인 중…') : (st.open ? '운영 중' : '운영 종료');
+  var ready = st.loaded && !writing;
+  btnStart.disabled = !ready || st.open;
+  btnStop.disabled = !ready || !st.open;
+  if (note) { msg.textContent = note; msg.className = 'note' + (noteIsErr ? ' err' : ''); }
+  else if (st.error) { msg.textContent = errText(st.error); msg.className = 'note err'; }
+  else if (!st.loaded) { msg.textContent = ''; msg.className = 'note'; }
+  else { msg.textContent = st.changedAt ? '마지막 변경: ' + fmt(st.changedAt) : '아직 운영을 시작한 적이 없습니다.'; msg.className = 'note'; }
+}
+function apply(j) { st.loaded = true; st.error = ''; st.open = j.open === true; st.changedAt = j.changedAt || 0; }
+function jsonOf(r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); }
+function load() {
+  if (writing) return;
+  fetch('/api/status', { cache: 'no-store' }).then(jsonOf).then(function (x) {
+    if (!x.ok) { st.loaded = false; st.error = (x.j && x.j.error) || 'error'; } else apply(x.j);
+    render();
+  }).then(null, function () { st.loaded = false; st.error = 'network'; render(); });
+}
+function setOpen(v) {
+  if (writing) return;
+  writing = true; note = ''; noteIsErr = false; render();
+  fetch('/api/status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: v, key: adminKey }) }).then(jsonOf)
+    .then(function (x) {
+      if (x.ok) apply(x.j);
+      else if (authFailed(x)) return;
+      else { note = errText((x.j && x.j.error) || 'error'); noteIsErr = true; }
+    }, function () { note = errText('network'); noteIsErr = true; })
+    .then(function () { writing = false; render(); });
+}
+btnStart.addEventListener('click', function () { setOpen(true); });
+btnStop.addEventListener('click', function () { setOpen(false); });
+
+/* ---------- 관리 번호 입력 화면 ---------- */
+function setPinMsg(t, err) { pinMsg.textContent = t; pinMsg.className = 'note' + (err ? ' err' : ''); }
+function showGate(m, err) {
+  app.classList.add('hidden'); gate.classList.remove('hidden');
+  pin.disabled = false; pinBtn.disabled = false; pin.value = ''; setPinMsg(m || '', err);
+  try { pin.focus(); } catch (e) {}
+}
+function showApp() { gate.classList.add('hidden'); app.classList.remove('hidden'); render(); load(); }
+function startLock(sec) {
+  clearInterval(lockTimer);
+  var until = Date.now() + sec * 1000;
+  gate.classList.remove('hidden'); app.classList.add('hidden');
+  pin.value = ''; pin.disabled = true; pinBtn.disabled = true;
+  function tick() {
+    var left = Math.ceil((until - Date.now()) / 1000);
+    if (left <= 0) { clearInterval(lockTimer); pin.disabled = false; pinBtn.disabled = false; setPinMsg('다시 입력해 주세요.', false); try { pin.focus(); } catch (e) {} return; }
+    setPinMsg('번호를 5번 틀려 입력이 잠겼습니다. ' + left + '초 후에 다시 입력할 수 있습니다.', true);
+  }
+  tick(); lockTimer = setInterval(tick, 250);
+}
+function authFailed(x) {
+  var e = x.j && x.j.error;
+  if (e !== 'unauthorized' && e !== 'locked') return false;
+  adminKey = ''; try { sessionStorage.removeItem('adminKey'); } catch (er) {}
+  if (e === 'locked') startLock((x.j && x.j.retryAfter) || 60); else showGate('관리 번호가 다시 필요합니다.', true);
+  return true;
+}
+function postKey(k) { return fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: k }) }).then(jsonOf); }
+function submitPin() {
+  var v = pin.value.replace(/\s+/g, '');
+  if (!v) return;
+  pin.disabled = true; pinBtn.disabled = true; setPinMsg('확인 중…', false);
+  postKey(v).then(function (x) {
+    if (x.ok) { adminKey = v; try { sessionStorage.setItem('adminKey', v); } catch (e) {} showApp(); return; }
+    var err = x.j && x.j.error;
+    if (err === 'locked') startLock((x.j && x.j.retryAfter) || 60);
+    else if (err === 'unauthorized') showGate('번호가 맞지 않습니다. (남은 시도 ' + x.j.left + '회)', true);
+    else showGate(errText(err || 'error'), true);
+  }).then(null, function () { showGate(errText('network'), true); });
+}
+pinBtn.addEventListener('click', submitPin);
+pin.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPin(); });
+pin.addEventListener('input', function () { pin.value = pin.value.replace(/[^0-9]/g, ''); });
+function init() {
+  fetch('/api/auth', { cache: 'no-store' }).then(jsonOf).then(function (x) {
+    if (!x.ok) { showGate(errText((x.j && x.j.error) || 'error'), true); return; }
+    if (!x.j.keyRequired) { noPin.classList.remove('hidden'); showApp(); return; }
+    if (x.j.locked) { startLock(x.j.retryAfter || 60); return; }
+    if (adminKey) {
+      postKey(adminKey).then(function (y) {
+        if (y.ok) showApp(); else if (y.j && y.j.error === 'locked') startLock(y.j.retryAfter || 60);
+        else { adminKey = ''; try { sessionStorage.removeItem('adminKey'); } catch (e) {} showGate('', false); }
+      });
+    } else showGate('', false);
+  }).then(null, function () { showGate(errText('network'), true); });
+}
+render(); setInterval(function () { if (!document.hidden) load(); }, POLL); init();
+})();
+</script>
+</body>
+</html>

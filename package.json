@@ -1,0 +1,18 @@
+{
+  "name": "nysc_gps_render",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GPS Viewer 2(Render) — 내 휴대전화 GPS 좌표 보기 (도·각분·각초, 운영 시작/종료 관리)",
+  "scripts": {
+    "start": "node render/server.js",
+    "dev": "node dev/server.js",
+    "test": "node test/dms.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "redis": "^6.3.1"
+  }
+}

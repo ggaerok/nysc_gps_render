@@ -1,0 +1,8 @@
+node_modules/
+.vercel/
+.env
+.env.*
+!.env.example
+.dev-status.json
+
+.dev-status.json.auth

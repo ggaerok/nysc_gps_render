@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f5c56">
+<title>내 GPS 좌표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0f5c56;color:#0d2a27;
+  font-family:'Jua',-apple-system,BlinkMacSystemFont,"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+  -webkit-tap-highlight-color:transparent}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;text-align:center;padding:24px 16px 40px;
+  background:
+  radial-gradient(circle at 12% 18%,#c9fff0 0 2px,transparent 3px),radial-gradient(circle at 80% 12%,#c9fff0 0 2px,transparent 3px),
+  radial-gradient(circle at 30% 70%,#c9fff0 0 1.5px,transparent 2.5px),radial-gradient(circle at 90% 80%,#c9fff0 0 2px,transparent 3px),
+  radial-gradient(circle at 55% 40%,#c9fff0 0 1.5px,transparent 2.5px),radial-gradient(120% 80% at 50% 0%,#1f8f83 0%,#0f5c56 55%,#083a36 100%)}
+h1{margin:0 0 6px;font-size:30px;font-weight:400;color:#e6faf3;text-shadow:0 3px 0 #0d2a27}
+h2{margin:0 0 8px;font-size:20px;font-weight:400}
+.card{background:#e6faf3;border:3.5px solid #0d2a27;border-radius:24px;box-shadow:0 6px 0 #0d2a27;padding:18px 20px 20px;width:100%;max-width:400px;margin-top:16px}
+.note{color:#2c5f58;font-size:15px;line-height:1.5;margin:6px 0}
+.top-note{color:#d3f3ea;font-size:14px;line-height:1.5;max-width:360px;margin:6px 0}
+.row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin:12px 0}
+.btn{font:inherit;font-size:19px;border:3.5px solid #0d2a27;border-radius:18px;padding:11px 24px;cursor:pointer;min-width:140px;
+  text-decoration:none;display:inline-block;color:#0d2a27;box-shadow:0 4px 0 #0d2a27}
+.btn.go{background:#ffb547}.btn.stop{background:#ff7a7a}.btn.sub{background:#fff}
+.btn:disabled{opacity:.4;cursor:default;box-shadow:0 2px 0 #0d2a27}
+.btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 #0d2a27}
+.err{color:#c0322e}
+.hidden{display:none!important}
+html,body{height:100%}
+#cover{position:fixed;inset:0;background:#fff;z-index:9000;color:#b8b8b8;font-size:13px;display:flex;align-items:center;justify-content:center}
+.coord{background:#fff;border:3px solid #0d2a27;border-radius:16px;padding:12px 14px;margin:12px 0;text-align:left}
+.coord .lbl{font-size:14px;color:#2c5f58}
+.coord .val{font-size:min(32px,calc((100vw - 120px) / 8.9));line-height:1.25;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.coord .dec{font-size:16px;color:#4a7f77;margin-top:2px;font-variant-numeric:tabular-nums}
+ul.info{text-align:left;color:#2c5f58;font-size:15px;line-height:1.6;padding-left:20px;margin:8px 0 6px}
+ul.info li{margin:4px 0}
+.red{color:#d11f1f}
+.agreed .pre{display:none}
+#consent.agreed{display:flex;flex-direction:column;min-height:calc(100vh - 110px);min-height:calc(100dvh - 110px)}
+#consent.agreed:not(.gopen) #guide{display:none}
+#consent.agreed.gopen #guide{flex:1;display:flex;flex-direction:column;justify-content:center}
+#bar{display:flex;gap:10px;margin-top:auto}
+#bar .btn{flex:1;min-width:0;padding:11px 0;margin:0;font-size:18px}
+#mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(13,42,39,.72);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9500}
+#dlg{background:#e6faf3;border:3.5px solid #0d2a27;border-radius:24px;box-shadow:0 6px 0 #0d2a27;padding:22px 24px;max-width:340px;width:100%;text-align:center}
+#dlg p{margin:6px 0 0;font-size:15px;line-height:1.55;color:#2c5f58}
+#dlg .row{margin:18px 0 0}
+#dlg .btn{min-width:0;flex:1;padding:10px 0;font-size:18px}
+#consent.agreed.gopen #view{margin-bottom:0}
+#consent.agreed #view{margin-bottom:14px}
+
+.how{font-size:13px;color:#4a7f77;text-align:left;line-height:1.55;margin:4px 0 10px;padding:8px 10px;border:2px dashed #0d2a27;border-radius:12px;background:rgba(255,255,255,.6)}
+.how b{color:#2c5f58;font-weight:400}
+.row .btn{min-width:0;flex:1}
+#wrap{width:100%;display:flex;flex-direction:column;align-items:center}
+</style>
+</head>
+<body>
+<!-- 운영 중이 서버에서 확인되기 전에는 흰 화면으로 덮는다 -->
+<div id="cover"><span id="coverMsg"></span></div>
+<div id="wrap">
+<h1 style="margin-top:8px">내 GPS 좌표</h1>
+
+<div id="consent" class="card hidden">
+  <div id="view" class="hidden">
+    <div class="coord"><div class="lbl">위도 (Latitude)</div><div class="val" id="lat">위치 수신 중…</div><div class="dec" id="latd"></div></div>
+    <div class="coord"><div class="lbl">경도 (Longitude)</div><div class="val" id="lon">위치 수신 중…</div><div class="dec" id="lond"></div></div>
+    <p class="note" id="acc"></p>
+    <p class="note err" id="err"></p>
+  </div>
+  <div id="guide">
+  <h2 style="margin-top:6px">이용 안내</h2>
+  <ul class="info">
+    <li>내 휴대전화의 GPS 위치를 실시간으로 보여줍니다.</li>
+    <li>좌표는 이 화면에만 표시되며 <b class="red">서버로 전송하거나 저장하지 않습니다.</b></li>
+    <li class="pre">[동의]를 누르면 위치 권한 창이 나타납니다.</li>
+    <li class="red pre">권한 창에서 [이번에만 허용]이 보이면 반드시 그것을 눌러 주세요. 그래야 다음 접속 때 다시 묻습니다.</li>
+  </ul>
+  <div class="how"><b>다른 허용(항상 허용 등)을 눌렀다면?</b><br>
+    <b>삼성 인터넷</b>: 메뉴(≡) → 설정 → 사이트 및 다운로드 → 사이트 권한 → 위치 → 허용된 사이트에서 이 사이트 삭제<br>
+    <b>iPhone Safari</b>: 설정 → 앱 → Safari → 위치 → 이 사이트 → '묻기' (iOS 17 이하는 설정 → Safari → 위치)<br>
+    <span>※ 기기마다 설정 방법이 조금 다를 수 있습니다.</span></div>
+  </div>
+  <div id="btns" class="row"><button id="cancel" class="btn sub" type="button">취소</button><button id="agree" class="btn go" type="button">동의</button></div>
+  <div id="bar" class="hidden"><button id="guideBtn" class="btn sub" type="button" aria-expanded="false">이용안내</button><button id="exitBtn" class="btn stop" type="button">종료</button></div>
+</div>
+</div>
+<div id="mask" class="hidden"><div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgT">
+  <h2 id="dlgT">종료할까요?</h2>
+  <p>종료하면 위치 수신을 멈추고 이 화면을 닫습니다.</p>
+  <div class="row"><button id="dlgNo" class="btn sub" type="button">취소</button><button id="dlgYes" class="btn stop" type="button">종료</button></div>
+</div></div>
+<script src="/dms.js"></script>
+<script>
+(function () {
+'use strict';
+function $(id) { return document.getElementById(id); }
+var cover = $('cover'), consent = $('consent'), view = $('view'), btns = $('btns'), guideBtn = $('guideBtn'), bar = $('bar'), mask = $('mask');
+var POLL = 3000, MAX_FAILS = 2, fails = 0, agreed = false, watchId = null;
+
+function stopWatch() { if (watchId !== null) { try { navigator.geolocation.clearWatch(watchId); } catch (e) {} watchId = null; } }
+function reset() {
+  stopWatch(); agreed = false; mask.classList.add('hidden'); consent.classList.remove('gopen'); guideBtn.setAttribute('aria-expanded', 'false');
+  $('lat').textContent = '위치 수신 중…'; $('lon').textContent = '위치 수신 중…';
+  $('latd').textContent = ''; $('lond').textContent = ''; $('acc').textContent = ''; $('err').textContent = '';
+}
+function dmsText(r) { return r.dir + ' ' + r.d + '° ' + r.m + '′ ' + r.s + '″'; }
+
+function show(open, msg) {
+  if (!open) { reset(); consent.classList.add('hidden'); view.classList.add('hidden'); btns.classList.remove('hidden'); cover.style.display = 'flex'; $('coverMsg').textContent = msg || ''; return; }
+  cover.style.display = 'none';
+  consent.classList.remove('hidden');                       // 이용 안내는 동의 전·후 모두 보여준다
+  consent.classList.toggle('agreed', agreed);               // 동의 후에는 '권한 창' 안내 두 줄을 숨기고 점선 상자만 남긴다
+  if (agreed) { btns.classList.add('hidden'); view.classList.remove('hidden'); bar.classList.remove('hidden'); }
+  else { view.classList.add('hidden'); btns.classList.remove('hidden'); bar.classList.add('hidden'); }
+}
+function check() {
+  fetch('/api/status', { cache: 'no-store' }).then(function (r) {
+    if (!r.ok) throw new Error('http ' + r.status);
+    return r.json();
+  }).then(function (s) {
+    fails = 0;
+    if (s && s.open === true) show(true); else show(false, '현재 운영 중이 아닙니다');
+  }).then(null, function () { fails++; if (fails >= MAX_FAILS) show(false, '연결할 수 없습니다'); });
+}
+
+function startWatch() {
+  if (!navigator.geolocation) { $('err').textContent = '이 브라우저는 위치 기능을 지원하지 않습니다.'; return; }
+  // 좌표는 아래 콜백에서 화면에 그리는 데에만 쓴다. 전송·저장 코드는 없다.
+  watchId = navigator.geolocation.watchPosition(function (pos) {
+    var c = pos.coords;
+    $('lat').textContent = dmsText(toDMS(c.latitude, true));
+    $('lon').textContent = dmsText(toDMS(c.longitude, false));
+    $('latd').textContent = c.latitude.toFixed(6) + '°';
+    $('lond').textContent = c.longitude.toFixed(6) + '°';
+    $('acc').textContent = '정확도 약 ' + Math.round(c.accuracy) + 'm';
+    $('err').textContent = '';
+  }, function (e) {
+    $('err').textContent = e.code === 1 ? '위치 권한이 거부되었습니다. 브라우저 설정에서 허용한 뒤 새로고침해 주세요.'
+      : e.code === 2 ? '위치를 확인할 수 없습니다.' : '위치 확인 시간이 초과되었습니다.';
+  }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+
+guideBtn.addEventListener('click', function () {
+  var open = consent.classList.toggle('gopen');
+  guideBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+$('agree').addEventListener('click', function () { agreed = true; show(true); startWatch(); });
+function closePage() {
+  reset(); window.close();                       // 스크립트로 연 창이 아니면 닫히지 않을 수 있어 빈 페이지로 이동
+  setTimeout(function () { location.replace('about:blank'); }, 150);
+}
+$('cancel').addEventListener('click', closePage);
+$('exitBtn').addEventListener('click', function () { mask.classList.remove('hidden'); $('dlgNo').focus(); });
+$('dlgNo').addEventListener('click', function () { mask.classList.add('hidden'); $('exitBtn').focus(); });
+mask.addEventListener('click', function (e) { if (e.target === mask) mask.classList.add('hidden'); });
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') mask.classList.add('hidden'); });
+$('dlgYes').addEventListener('click', closePage);
+
+show(false, '');
+check();
+setInterval(function () { if (!document.hidden) check(); }, POLL);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+})();
+</script>
+</body>
+</html>
