@@ -76,8 +76,8 @@ function $(id) { return document.getElementById(id); }
 var pill = $('pill'), msg = $('msg'), btnStart = $('btnStart'), btnStop = $('btnStop');
 var gate = $('gate'), app = $('app'), pin = $('pin'), pinBtn = $('pinBtn'), pinMsg = $('pinMsg'), noPin = $('noPin');
 var adminKey = '', lockTimer = null;
-var st = { open: false, changedAt: 0, loaded: false, error: '' }, writing = false, note = '', noteIsErr = false;
-var POLL = 5000;
+var st = { open: false, changedAt: 0, loaded: false, error: '' }, writing = false, note = '', noteIsErr = false, needSync = false;
+// 운영 상태는 관리 화면을 열 때 한 번만 확인한다 (주기적으로 확인하지 않음). 버튼을 누른 결과는 서버 응답으로 바로 표시한다.
 
 $('locUrl').textContent = location.origin + '/location';
 try { adminKey = sessionStorage.getItem('adminKey') || ''; } catch (e) {}
@@ -118,9 +118,9 @@ function setOpen(v) {
     .then(function (x) {
       if (x.ok) apply(x.j);
       else if (authFailed(x)) return;
-      else { note = errText((x.j && x.j.error) || 'error'); noteIsErr = true; }
+      else { note = errText((x.j && x.j.error) || 'error'); noteIsErr = true; needSync = true; }
     }, function () { note = errText('network'); noteIsErr = true; })
-    .then(function () { writing = false; render(); });
+    .then(function () { writing = false; render(); if (needSync) { needSync = false; load(); } });
 }
 btnStart.addEventListener('click', function () { setOpen(true); });
 btnStop.addEventListener('click', function () { setOpen(false); });
@@ -181,7 +181,7 @@ function init() {
     } else showGate('', false);
   }).then(null, function () { showGate(errText('network'), true); });
 }
-render(); setInterval(function () { if (!document.hidden) load(); }, POLL); init();
+render(); init();
 })();
 </script>
 </body>
