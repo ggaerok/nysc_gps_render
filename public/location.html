@@ -102,7 +102,7 @@ ul.info li{margin:4px 0}
 'use strict';
 function $(id) { return document.getElementById(id); }
 var cover = $('cover'), consent = $('consent'), view = $('view'), btns = $('btns'), guideBtn = $('guideBtn'), bar = $('bar'), mask = $('mask');
-var POLL = 3000, MAX_FAILS = 2, fails = 0, agreed = false, watchId = null;
+var RETRY_MS = 2000, agreed = false, watchId = null;
 
 function stopWatch() { if (watchId !== null) { try { navigator.geolocation.clearWatch(watchId); } catch (e) {} watchId = null; } }
 function reset() {
@@ -120,14 +120,19 @@ function show(open, msg) {
   if (agreed) { btns.classList.add('hidden'); view.classList.remove('hidden'); bar.classList.remove('hidden'); }
   else { view.classList.add('hidden'); btns.classList.remove('hidden'); bar.classList.add('hidden'); }
 }
-function check() {
+// 운영 여부는 처음 접속할 때 한 번만 확인한다 (새로고침하면 다시 확인).
+// 접속한 뒤에는 서버에 묻지 않으므로, 관리 페이지에서 운영을 종료해도 이미 열린 화면은 새로고침 전까지 계속 동작한다.
+// 일시적인 네트워크 오류에 대비해 실패하면 한 번만 다시 시도한다.
+function check(retried) {
   fetch('/api/status', { cache: 'no-store' }).then(function (r) {
     if (!r.ok) throw new Error('http ' + r.status);
     return r.json();
   }).then(function (s) {
-    fails = 0;
     if (s && s.open === true) show(true); else show(false, '현재 운영 중이 아닙니다');
-  }).then(null, function () { fails++; if (fails >= MAX_FAILS) show(false, '연결할 수 없습니다'); });
+  }).then(null, function () {
+    if (!retried) setTimeout(function () { check(true); }, RETRY_MS);
+    else show(false, '연결할 수 없습니다');
+  });
 }
 
 function startWatch() {
@@ -164,9 +169,7 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') mask
 $('dlgYes').addEventListener('click', closePage);
 
 show(false, '');
-check();
-setInterval(function () { if (!document.hidden) check(); }, POLL);
-document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+check(false);
 })();
 </script>
 </body>
